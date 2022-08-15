@@ -4,12 +4,14 @@
 #include <conio.h>
 #include <thread>
 #include <stdlib.h>
+#include "PacketHeaderTypes.h"
 #include "Message.h"
 #include "User.h"
 
 ENetHost* server = nullptr;
 ENetHost* client = nullptr;
 ENetAddress address;
+std::thread* PacketThread = nullptr;
 User thisUser;
 bool isDone = false;
 Message message;
@@ -37,12 +39,33 @@ void ClientInput(User& thisUser, ENetHost* person) {
         enet_host_flush(person);
     }
 }
+void HostInput(User& thisUser, ENetHost* person) {
+    while (isDone == false) {
+
+        std::string text = "";
+        thisUser.name = userName;
+        {
+            std::getline(std::cin, text);
+            if (text == "q") {
+                isDone = true;
+            }
+            text = thisUser.name + ": " + text;
+        }
+        //system("CLS");
+        message.message = text;
+        Buffer* msgBuffer = message.Serialize();
+        ENetPacket* packet = enet_packet_create(msgBuffer->data,
+            msgBuffer->dataSize,
+            ENET_PACKET_FLAG_RELIABLE);
+        enet_host_broadcast(person, 0, packet);
+        enet_host_flush(person);
+    }
+}
 void ServerOuput() {
     while (isDone == false) {
         ENetEvent event;
         /* Wait up to 1000 milliseconds for an event. */
-        while (enet_host_service(client, &event, 1000) > 0)
-        {
+ 
             switch (event.type)
             {
             case ENET_EVENT_TYPE_RECEIVE:
@@ -52,7 +75,7 @@ void ServerOuput() {
                 enet_packet_destroy(event.packet);
                 break;
             }
-        }
+        
     }
 }
 void GetUserName() {
@@ -121,7 +144,7 @@ void SendPacket(ENetHost* person) {
     //enet_peer_send(event.peer, 0, packet);
         /* One could just use enet_host_service() instead. */
     enet_host_flush(person);
-}
+}  //not used, only for demonstation of how to effectivly send a packet
 void ServerInstatiate() {
    
     /* Wait up to 1000 milliseconds for an event. */
